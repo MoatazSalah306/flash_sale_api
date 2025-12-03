@@ -1,59 +1,251 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
 
-## About Laravel
+# Laravel Flash Sale / Stock Management API
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+This project implements a **Flash Sale / Product Stock Management API** using Laravel. It handles products, holds, orders, and webhook processing with idempotency support. The project is fully tested using PHPUnit.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Table of Contents
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+* [Features](#features)
+* [Installation](#installation)
+* [Database Migrations](#database-migrations)
+* [API Endpoints](#api-endpoints)
+* [Testing](#testing)
+* [API Documentation](#api-documentation)
+* [Additional Features](#additional-features)
+* [Notes](#notes)
+* [Author](#author)
 
-## Learning Laravel
+## Features
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### Product Management
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* CRUD for products (name, price, total stock)
+* Tracks `reserved_stock` and `sold_stock` automatically
+* Computes `available_stock` dynamically:
 
-## Laravel Sponsors
+```php
+available_stock = total_stock - reserved_stock - sold_stock
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+* Get product details including real-time available stock
 
-### Premium Partners
+### Hold Management
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+* Create a Hold for a product (`POST /holds`)
+* Validates that requested quantity ≤ available stock
+* Automatically sets `expires_at` timestamp
+* Reserved stock is updated on hold creation
+* Expired holds release reserved stock automatically
 
-## Contributing
+### Order Management
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+* Create an Order for an existing hold (`POST /orders`)
+* Reserved stock is moved to sold stock upon order creation
+* Handles status transitions: `Pending → Paid`
+* Supports webhook-first scenario: Webhook can arrive before order exists
+* Order will be updated to `Paid` when created
 
-## Code of Conduct
+### Webhook & Idempotency
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+* Webhooks (`POST /api/payments/webhook`) are logged in `webhook_logs`
+* Supports idempotency via `idempotency_key`
+* Pending webhooks for non-existent orders are processed automatically when the order is created
+* Prevents duplicate webhook logs
 
-## Security Vulnerabilities
+### Expiry & Background Processing
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+* Expired holds release reserved stock
+* Works with `ExpireHolds` job (or manual expiry logic)
+* To test jobs and automatic hold releases, run:
 
-## License
+```bash
+php artisan schedule:work
+php artisan queue:work
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Additional Features
+
+### Rate Limiting
+
+* Implemented rate limiting on critical endpoints:
+
+  * `POST /api/holds` - Prevents abuse of hold creation
+  * `POST /api/orders` - Controls order creation frequency
+
+### Timezone Handling
+
+* Custom middleware to extract timezone from request headers
+* Returns timezone-aware timestamps for all API responses
+* Ensures correct datetime representation for users across different timezones
+
+### API Response Standardization
+
+* Custom `APIresponseService` for consistent API response formatting
+* Hookable response structure with:
+
+  * Standardized status codes
+  * Uniform message formatting
+  * Consistent data wrapping
+  * Easy integration with frontend applications
+
+## Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/MoatazSalah306/flash_sale_api.git
+cd flash-sale-api
+```
+
+2. Install dependencies:
+
+```bash
+composer install
+```
+
+3. Copy `.env.example` to `.env` and set your database credentials:
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+4. Run migrations:
+
+```bash
+php artisan migrate
+```
+
+5. (Optional) Seed database with initial data if needed:
+
+```bash
+php artisan db:seed
+```
+
+## Database Migrations
+
+### Products
+
+```
+id, name, price, total_stock, reserved_stock, sold_stock, timestamps
+```
+
+### Holds
+
+```
+id, product_id, qty, expires_at, status, timestamps
+```
+
+### Orders
+
+```
+id, hold_id, status, timestamps
+```
+
+### WebhookLogs
+
+```
+id, idempotency_key, order_id (nullable), status, processed_at, timestamps
+```
+
+## API Endpoints
+
+| Method | Endpoint                | Description                               |
+| ------ | ----------------------- | ----------------------------------------- |
+| GET    | `/api/products/{id}`    | Get product details with available stock  |
+| POST   | `/api/holds`            | Create a new hold for a product           |
+| POST   | `/api/orders`           | Create a new order for a hold             |
+| POST   | `/api/payments/webhook` | Receive webhook for payment/order updates |
+
+### Example Responses:
+
+**GET /api/products/{id}**
+
+```json
+{
+  "status": true,
+  "message": "Product fetched successfully",
+  "data": {
+    "id": 1,
+    "name": "Flash Sale Product Example",
+    "price": "105.00",
+    "available_stock": 100
+  }
+}
+```
+
+**POST /api/holds**
+
+```json
+{
+    "status": true,
+    "message": "Hold created successfully",
+    "data": {
+        "holdID": 3,
+        "expiresAt": "2025-12-03T09:52:52+02:00"
+    }
+}
+```
+
+**POST /api/orders**
+
+```json
+{
+    "status": true,
+    "message": "Order created successfully",
+    "data": {
+        "orderID": 3
+    }
+}
+```
+
+## Testing
+
+All features are covered with PHPUnit tests. Includes tests for:
+
+* Product retrieval with available stock calculation
+* Hold creation and stock updates
+* Order creation and stock transitions
+* Expired hold stock release
+* Webhook idempotency and pre-order arrival
+* Rate limiting functionality
+* Timezone middleware
+* API response formatting
+
+Run tests:
+
+```bash
+php artisan test
+```
+
+## API Documentation
+
+An API documentation has been created to facilitate easier testing and integration. You can access it here: [PUT YOUR LINK HERE]
+
+## Notes
+
+* Make sure to use the correct queue connection in `.env` for webhook/background jobs if testing async behavior:
+
+```env
+QUEUE_CONNECTION=database
+```
+
+* Holds and orders logic ensures no oversell occurs
+* All relationships between products, holds, orders, and webhooks are properly maintained
+* Rate limiting can be configured in `app/Http/Kernel.php`
+* Timezone header can be set using `X-Timezone` header (e.g., `X-Timezone: Europe/Paris`)
+* The `GET /api/products/{id}` endpoint provides real-time available stock calculation
+* To test background jobs and automatic hold release, run:
+
+```bash
+php artisan schedule:work
+php artisan queue:work
+```
+
+## Author
+
+Developed and tested by Moataz Salah
+
+This project was implemented as part of a Laravel coding task for Junior Software Engineer role.
+
