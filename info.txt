@@ -1,0 +1,5 @@
+1- Handled "Race conditions" & "Atomicity" & "pessimistic row-level lock" in "holdController.create".
+
+contention = نزاع
+
+2- use => "use Illuminate\Foundation\Bus\Dispatchable;" instead of => "Illuminate\Foundation\Events\Dispatchable;" To: be able to run the command : "php artisan schedule:work"
