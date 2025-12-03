@@ -221,7 +221,7 @@ php artisan test
 
 ## API Documentation
 
-An API documentation has been created to facilitate easier testing and integration. You can access it here: [PUT YOUR LINK HERE]
+An API documentation has been created to facilitate easier testing and integration. You can access it here: https://share.apidog.com/3585a767-0bbb-4f43-85d2-e7613a6fc992
 
 ## Notes
 
