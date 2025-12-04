@@ -63,7 +63,9 @@ available_stock = total_stock - reserved_stock - sold_stock
 php artisan schedule:work
 php artisan queue:work
 ```
-
+### Logging and metrics handling
+* All loga will be visible in  `storage/laravel.log`
+  
 ## Additional Features
 
 ### Rate Limiting
