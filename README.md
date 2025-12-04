@@ -64,7 +64,7 @@ php artisan schedule:work
 php artisan queue:work
 ```
 ### Logging and metrics handling
-* All loga will be visible in  `storage/laravel.log`
+* All logs are pretty visible in  `storage/laravel.log`
   
 ## Additional Features
 
